@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Patente Info</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+    <style>
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            font-family: Arial, sans-serif;
+            background-color: #f4f4f4;
+        }
+        .container {
+            text-align: center;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+        }
+        h1 {
+            margin-bottom: 20px;
+        }
+        p {
+            margin: 10px 0;
+        }
+        @media (max-width: 600px) {
+            .container {
+                width: 90%;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Patente Information</h1>
+        <p><strong>Patente:</strong> {{ patente }}</p>
+        <p><strong>Timestamp:</strong> {{ timestamp }}</p>
+        <p><strong>Ubicacion:</strong> {{ ubicacion }}</p>
+        <p><strong>Hora de ingreso:</strong> {{ start_time }}</p>
+        <p><strong>Tiempo en curso:</strong> <span id="elapsed-time"></span></p>
+        <button id="pagar">Pagar</button>
+        <div id="cronometro-result"></div>
+    </div>
+    <script>
+        let intervalId;
+
+        function updateElapsedTime(startTime) {
+            const start = new Date(startTime);
+            intervalId = setInterval(() => {
+                const now = new Date();
+                const elapsed = new Date(now - start);
+                const hours = String(elapsed.getUTCHours()).padStart(2, '0');
+                const minutes = String(elapsed.getUTCMinutes()).padStart(2, '0');
+                const seconds = String(elapsed.getUTCSeconds()).padStart(2, '0');
+                document.getElementById('elapsed-time').innerText = `${hours}:${minutes}:${seconds}`;
+            }, 1000);
+        }
+
+        document.addEventListener('DOMContentLoaded', function() {
+            const startTime = "{{ start_time }}";
+            if (startTime) {
+                updateElapsedTime(startTime);
+            }
+        });
+
+        document.getElementById('pagar').addEventListener('click', function() {
+            clearInterval(intervalId);
+            fetch(`/pagar/{{ patente }}`, { method: 'POST' })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.error) {
+                        document.getElementById('cronometro-result').innerText = data.error;
+                    } else {
+                        document.getElementById('cronometro-result').innerText = `Costo: ${data.costo} - End Time: ${data.end_time}`;
+                    }
+                })
+                .catch(error => {
+                    document.getElementById('cronometro-result').innerText = 'Error processing payment';
+                });
+        });
+    </script>
+</body>
+</html>
