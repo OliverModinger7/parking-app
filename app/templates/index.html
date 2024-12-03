@@ -3,19 +3,51 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>cam Parking App</title>
+    <title>Checkout</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+    <script src="https://sdk.mercadopago.com/js/v2"></script>
 </head>
 <body>
     <div class="container">
-        <h1>cam Parking App</h1>
-        <form id="consult-form">
-            <label for="patente">Ingresa Patente:</label>
-            <input type="text" id="patente" name="patente" required>
-            <button type="submit">Consultar</button>
+        <h1>Checkout</h1>
+        <form id="payment-form">
+            <input type="text" id="title" placeholder="Título del producto" required>
+            <input type="number" id="quantity" placeholder="Cantidad" required>
+            <input type="number" id="unit_price" placeholder="Precio unitario" required>
+            <button type="submit">Pagar</button>
         </form>
         <div id="result"></div>
     </div>
     <script src="{{ url_for('static', filename='js/scripts.js') }}"></script>
+    <script>
+        const mp = new MercadoPago('TEST-447ece78-f359-4489-8871-c077286be222', {
+            locale: 'es-AR'
+        });
+
+        document.getElementById('payment-form').addEventListener('submit', function (event) {
+            event.preventDefault();
+
+            fetch('/create_preference', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    title: document.getElementById('title').value,
+                    quantity: document.getElementById('quantity').value,
+                    unit_price: document.getElementById('unit_price').value
+                })
+            })
+            .then(response => response.json())
+            .then(preference => {
+                mp.checkout({
+                    preference: {
+                        id: preference.id
+                    }
+                }).open();
+            })
+            .catch(error => console.error('Error:', error));
+        });
+    </script>
 </body>
 </html>

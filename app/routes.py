@@ -5,6 +5,7 @@ import qrcode
 import io
 import base64
 import os
+import mercadopago
 from .models import DataModel, EventModel, QRModel
 
 main = Blueprint('main', __name__)
@@ -103,3 +104,45 @@ def pagar(patente):
     costo = round(elapsed_minutes * 100, 2)
 
     return jsonify({'costo': costo, 'end_time': end_time.isoformat()})
+
+# Inicializa el cliente de MercadoPago
+sdk = mercadopago.SDK(current_app.config['MERCADOPAGO_ACCESS_TOKEN'])
+
+@main.route('/create_preference', methods=['POST'])
+def create_preference():
+    data = request.get_json()
+    if 'title' not in data or 'quantity' not in data or 'unit_price' not in data:
+        return jsonify({'error': 'Faltan campos requeridos'}), 400
+
+    preference_data = {
+        "items": [
+            {
+                "title": data['title'],
+                "quantity": int(data['quantity']),
+                "unit_price": float(data['unit_price']),
+            }
+        ],
+        "back_urls": {
+            "success": url_for('main.success', _external=True),
+            "failure": url_for('main.failure', _external=True),
+            "pending": url_for('main.pending', _external=True)
+        },
+        "auto_return": "approved",
+    }
+
+    preference_response = sdk.preference().create(preference_data)
+    preference = preference_response["response"]
+
+    return jsonify({'id': preference['id']})
+
+@main.route('/success')
+def success():
+    return "Pago exitoso"
+
+@main.route('/failure')
+def failure():
+    return "Pago fallido"
+
+@main.route('/pending')
+def pending():
+    return "Pago pendiente"
