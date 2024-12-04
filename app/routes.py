@@ -6,7 +6,7 @@ import io
 import base64
 import os
 import mercadopago
-from .models import DataModel, EventModel, QRModel
+from app.models import DataModel, EventModel, QRModel
 
 main = Blueprint('main', __name__)
 
@@ -36,8 +36,9 @@ def registro_patente():
 
     try:
         datetime.fromisoformat(timestamp)
-    except ValueError:
-        return jsonify({'error': 'El timestamp debe estar en formato ISO 8601'}), 400
+
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
 
     registro = DataModel(patente=patente, ubicacion=ubicacion)
     registro.timestamp = timestamp
@@ -105,35 +106,40 @@ def pagar(patente):
 
     return jsonify({'costo': costo, 'end_time': end_time.isoformat()})
 
-# Inicializa el cliente de MercadoPago
-sdk = mercadopago.SDK(current_app.config['MERCADOPAGO_ACCESS_TOKEN'])
+# conexion con el cliente de MercadoPago
+sdk = mercadopago.SDK('TEST-1333197382936437-120318-f7dfa2c4fac13e5929914bd1b2c43552-182457169')
 
 @main.route('/create_preference', methods=['POST'])
 def create_preference():
-    data = request.get_json()
-    if 'title' not in data or 'quantity' not in data or 'unit_price' not in data:
-        return jsonify({'error': 'Faltan campos requeridos'}), 400
+    try:
+        data = request.get_json()
+        if 'title' not in data or 'quantity' not in data or 'unit_price' not in data:
+            return jsonify({'error': 'Faltan campos requeridos'}), 400
 
-    preference_data = {
-        "items": [
-            {
-                "title": data['title'],
-                "quantity": int(data['quantity']),
-                "unit_price": float(data['unit_price']),
-            }
-        ],
-        "back_urls": {
-            "success": url_for('main.success', _external=True),
-            "failure": url_for('main.failure', _external=True),
-            "pending": url_for('main.pending', _external=True)
-        },
-        "auto_return": "approved",
-    }
+        preference_data = {
+            "items": [
+                {
+                    "title": data['title'],
+                    "quantity": int(data['quantity']),
+                    "unit_price": int(float(data['unit_price'])),
+                }
+            ],
+            "back_urls": {
+                "success": url_for('main.success', _external=True),
+                "failure": url_for('main.failure', _external=True),
+                "pending": url_for('main.pending', _external=True)
+            },
+            "auto_return": "approved",
+        }
 
-    preference_response = sdk.preference().create(preference_data)
-    preference = preference_response["response"]
+        preference_response = sdk.preference().create(preference_data)
+        preference = preference_response["response"]
+        print(preference)
 
-    return jsonify({'id': preference['id']})
+        return jsonify({'id': preference['id']})
+    except Exception as e:
+        current_app.logger.error(f"Error creating preference: {e}")
+        return jsonify({'error': 'Error creating preference'}), 500
 
 @main.route('/success')
 def success():

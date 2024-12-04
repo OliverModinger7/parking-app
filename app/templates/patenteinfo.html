@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Patente Info</title>
+    <title>Patente Information</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
     <style>
         body {
@@ -21,6 +21,8 @@
             padding: 20px;
             border-radius: 8px;
             box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            width: 50%;
+            margin: auto;
         }
         h1 {
             margin-bottom: 20px;
@@ -33,7 +35,21 @@
                 width: 90%;
             }
         }
+        #pagar {
+            background-color: #009EE3; /* Color azul de MercadoPago */
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            font-size: 16px;
+            cursor: pointer;
+            border-radius: 5px;
+        }
+        #pagar:disabled {
+            background-color: #cccccc;
+            cursor: not-allowed;
+        }
     </style>
+    <script src="https://sdk.mercadopago.com/js/v2"></script>
 </head>
 <body>
     <div class="container">
@@ -43,11 +59,13 @@
         <p><strong>Ubicacion:</strong> {{ ubicacion }}</p>
         <p><strong>Hora de ingreso:</strong> {{ start_time }}</p>
         <p><strong>Tiempo en curso:</strong> <span id="elapsed-time"></span></p>
-        <button id="pagar">Pagar</button>
+        <button id="calcular-saldo">Calcular Saldo</button>
+        <button id="pagar" disabled>Pagar</button>
         <div id="cronometro-result"></div>
     </div>
     <script>
         let intervalId;
+        let costo = 0;
 
         function updateElapsedTime(startTime) {
             const start = new Date(startTime);
@@ -68,7 +86,7 @@
             }
         });
 
-        document.getElementById('pagar').addEventListener('click', function() {
+        document.getElementById('calcular-saldo').addEventListener('click', function() {
             clearInterval(intervalId);
             fetch(`/pagar/{{ patente }}`, { method: 'POST' })
                 .then(response => response.json())
@@ -76,12 +94,41 @@
                     if (data.error) {
                         document.getElementById('cronometro-result').innerText = data.error;
                     } else {
+                        costo = data.costo;
                         document.getElementById('cronometro-result').innerText = `Costo: ${data.costo} - End Time: ${data.end_time}`;
+                        document.getElementById('pagar').disabled = false;
                     }
                 })
                 .catch(error => {
                     document.getElementById('cronometro-result').innerText = 'Error processing payment';
                 });
+        });
+
+        const mp = new MercadoPago('TEST-447ece78-f359-4489-8871-c077286be222', {
+            locale: 'es-CL'
+        });
+
+        document.getElementById('pagar').addEventListener('click', function () {
+            fetch('/create_preference', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    title: 'Pago de estacionamiento',
+                    quantity: 1,
+                    unit_price: costo
+                })
+            })
+            .then(response => response.json())
+            .then(preference => {
+                mp.checkout({
+                    preference: {
+                        id: preference.id
+                    }
+                }).open();
+            })
+            .catch(error => console.error('Error:', error));
         });
     </script>
 </body>
